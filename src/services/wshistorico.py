@@ -6,44 +6,57 @@ import xml.etree.ElementTree as ET
 import json
 import pandas as pd
 import os
+import sys
 from tabulate import tabulate
 
 def save_registros(xml_response):
+    # Ruta base compatible con ejecución desde .exe o .py
+    if getattr(sys, 'frozen', False):
+        BASE_DIR = os.path.dirname(sys.executable)
+    else:
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-    with open("data/output/registros.xml", "w", encoding="utf-8") as f:
+    output_dir = os.path.join(BASE_DIR, "data", "output")
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Guardar XML
+    xml_path = os.path.join(output_dir, "registros.xml")
+    with open(xml_path, "w", encoding="utf-8") as f:
         f.write(xml_response)
-    print("Exportado a data/output/registros.xml")
+    print(f"Exportado a {xml_path}")
 
     # Parsear XML
-    root = ET.fromstring(xml_response)
+    try:
+        root = ET.fromstring(xml_response)
+    except ET.ParseError:
+        print("❌ Error al parsear el XML.")
+        return
 
-    # Buscar todos los registros
+    # Buscar registros
     registros = []
     for registro in root.findall('.//{http://wsSitef_reporteador.com.mx/types/AolSitef_Reporteador}registro'):
         try:
             json_data = json.loads(registro.text)
             registros.append(json_data)
         except json.JSONDecodeError:
-            print("Error al parsear el JSON de un registro")
+            print("⚠️ Error al parsear el JSON de un registro.")
 
-    # Crear DataFrame
+    # Crear DataFrame y exportar si hay registros válidos
     if registros:
         df = pd.DataFrame(registros)
         pd.set_option('display.max_columns', None)
 
-        # Crear carpeta de salida si no existe
-        os.makedirs("data/output", exist_ok=True)
-
         # Exportar a CSV
-        df.to_csv("data/output/registros.csv", index=False, encoding='utf-8-sig')
-        print("\nExportado a data/output/registros.csv")
+        csv_path = os.path.join(output_dir, "registros.csv")
+        df.to_csv(csv_path, index=False, encoding='utf-8-sig')
+        print(f"Exportado a {csv_path}")
 
         # Exportar a JSON
-        df.to_json("data/output/registros.json", orient='records', indent=4, force_ascii=False)
-        print("Exportado a data/output/registros.json")
-
+        json_path = os.path.join(output_dir, "registros.json")
+        df.to_json(json_path, orient='records', indent=4, force_ascii=False)
+        print(f"Exportado a {json_path}")
     else:
-        print("No se encontraron registros.")
+        print("⚠️ No se encontraron registros.")
 
 
 load_dotenv(override=True)

@@ -1,3 +1,6 @@
-
+src/services/data/
 historycmd.txt
 venv/
+build/
+dist/
+wshistorico.spec
