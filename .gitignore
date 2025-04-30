@@ -4,3 +4,5 @@ venv/
 build/
 dist/
 wshistorico.spec
+src/__pycache__/
+src/services/__pycache__/
