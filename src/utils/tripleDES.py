@@ -25,36 +25,42 @@ class TripleDES:
         cipher = DES3.new(self.key, DES3.MODE_CBC, self.iv)
         encrypted_message = base64.b64decode(base64_message)
         decrypted_message = unpad(cipher.decrypt(encrypted_message), DES3.block_size)
+        #print(decrypted_message.decode('utf-8'))
         return decrypted_message.decode('utf-8')
+
     
     def encrypt(self, message):
-        # Codificar el mensaje a bytes
-        data = message.encode('utf-8')
-
-        # Padding para asegurar múltiplos de 8 bytes
-        padded_data = pad(data, DES3.block_size)
-
-        # Crear el cifrador
+        #print(f"Encrypting: '{message}'")
+        #print(f"Key (hex): {self.key.hex()}")
+        #print(f"IV (hex):  {self.iv.hex()}")
+        
         cipher = DES3.new(self.key, DES3.MODE_CBC, self.iv)
-
-        # Cifrar y codificar en base64
-        encrypted = cipher.encrypt(padded_data)
-        return base64.b64encode(encrypted).decode('utf-8')
+        padded = pad(message.encode('utf-8'), DES3.block_size)
+        encrypted = cipher.encrypt(padded)
+        encrypted_b64 = base64.b64encode(encrypted).decode('utf-8')
+        #print(f"Encrypted (base64): {encrypted_b64}")
+        return encrypted_b64
     
 def process_soap_request(soap_request, decryptor):
     # Parsear el XML
     root = ET.fromstring(soap_request)
 
     # Definir un espacio de nombres para facilitar la búsqueda
-    namespaces = {'soap': 'http://schemas.xmlsoap.org/soap/envelope/', 'xsi': 'http://www.w3.org/2001/XMLSchema-instance', 'xsd': 'http://www.w3.org/2001/XMLSchema'}
+    namespaces = {'soap': 'http://schemas.xmlsoap.org/soap/envelope/', 
+                  'xsi': 'http://www.w3.org/2001/XMLSchema-instance', 
+                  'xsd': 'http://www.w3.org/2001/XMLSchema', 
+                  'aol': 'http://wsAcredSitef.com.mx/types/AolSitef'}
 
     # Función recursiva para procesar elementos y desencriptar valores
     def decrypt_elements(element):
         if element.text and element.text.strip():
             try:
                 element.text = decryptor.decrypt(element.text.strip())
+                print(element.text, "=", decryptor.decrypt(element.text.strip()))
             except Exception as e:
-                print(f"Error al desencriptar: {e}")
+                #print(f"Error al desencriptar: {e}")
+                pass
+            
         for child in element:
             decrypt_elements(child)
 
@@ -69,21 +75,13 @@ def process_soap_request(soap_request, decryptor):
 # Ejemplo de uso
 if __name__ == "__main__":
     soap_request = '''
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:aol="http://wsAcredSitef.com.mx/types/AolSitef">
-<soapenv:Header/>
-<soapenv:Body>
-<aol:tokenRequest>
-<aol:Dispositivo>V7z5TsuT1Cc=</aol:Dispositivo>
-<aol:idProveedor>/IuVeKR2OPGRheAZEf656ah292d5nQxPbMXMZxOUPnAubClxOmpi/A</aol:idProveedor>
-</aol:tokenRequest>
-</soapenv:Body>
-</soapenv:Envelope>
 
+    <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Header><autorizacion xmlns="gsi">jU0Al0YYwDoKrmDTkv2IOZ4jg2iIvxsB</autorizacion></s:Header><s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"><depositoCuenta xmlns="http://citySitef.com.mx/types/CitySitef"><DepositoInput><ContractNumber>GCww1aVrokfVbfloY0bzEw==</ContractNumber><CPAE>b0i5Q8l9Sso=</CPAE><UnitNumber>GsLSVNblLHs=</UnitNumber><AccountNumber>a2Q5RnFuUfQxTM8GMyN3MA==</AccountNumber><DeviceID>jziE6FQJ/r4=</DeviceID><Sequence>GChCwUiMWNfKTJzHGWi54w==</Sequence><DepositAmount>w8eyU+O0SkU=</DepositAmount><Currency>azhiH8/Y7PI=</Currency><ArchivoCorpo>cXVniXkFQJk=</ArchivoCorpo><StatusTicket>cXVniXkFQJk=</StatusTicket><StatusServicio>cXVniXkFQJk=</StatusServicio><DiferenciaFisica>cXVniXkFQJk=</DiferenciaFisica><AreaVenta>YKu8P60iADY=</AreaVenta><DiferenciaContable>wvHiwKGx2m4=</DiferenciaContable><Version>0/TwGrSsDqgeiBHB0762rA==</Version><FechaDispositivo>uQfzFSBQWV1O0hBjzffFoK1WbVPZFa/m</FechaDispositivo><Denominaciones><Type>TCfeuxsMGvw=</Type><Amount>YmXNFTsdAag=</Amount><Count>2U6jTMrEolo=</Count><Currency>azhiH8/Y7PI=</Currency></Denominaciones><Reference1>3wbme/TS4f4=</Reference1><Reference2>K724NL93aK31+UNg2DReywVpVdHtGG6I</Reference2><ProcessorID>JYtdP2MHdb8Bge6wWPgulQ==</ProcessorID><PackageID>hxlImSrOp84=</PackageID><CounterfeitAmount>TCfeuxsMGvw=</CounterfeitAmount><MissingAmount>TCfeuxsMGvw=</MissingAmount><SurplusAmount>TCfeuxsMGvw=</SurplusAmount></DepositoInput></depositoCuenta></s:Body></s:Envelope>
+   
    '''
 
     load_dotenv(override=True)
     key_to_encrypt = config("KEY_TO_ENCRYPT_WS_TRADICIONAL")
-    
     decryptor = TripleDES(key_to_encrypt)
 
     decrypted_soap = process_soap_request(soap_request, decryptor)
